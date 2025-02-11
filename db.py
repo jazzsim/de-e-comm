@@ -3,9 +3,13 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from datetime import datetime, timezone
 from faker import Faker
 from decimal import Decimal
+from dotenv import load_dotenv
 
+import os
 import fake_data
 import random
+
+load_dotenv()
 
 Base = declarative_base()
 
@@ -93,13 +97,12 @@ class Payment(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     order_id = Column(Integer, ForeignKey('sales.id'), nullable=False)
     payment_date = Column(TIMESTAMP, default=datetime.now(timezone.utc))
-    payment_method = Column(Enum('Credit Card', 'PayPal', 'Bank Transfer', name='payment_method'), nullable=False)
+    payment_method = Column(Enum('Credit Card', 'E-Wallet', name='payment_method'), nullable=False)
     payment_status = Column(Enum('Paid', 'Pending', 'Failed', name='payment_status'), nullable=False)
     transaction_id = Column(String(100), unique=True, nullable=True)
 
 class Customer_Support(Base):
     __tablename__ = 'customer_support'
-    # id = Column(Integer, primary_key=True, autoincrement=True)
     ticket_id = Column(String(100), primary_key=True, unique=True, nullable=False, name="ticket_id")
     customer_name = Column(String(255), nullable=False, name='customer_name')
     email = Column(String(255), nullable=False)
@@ -114,28 +117,27 @@ class Customer_Support(Base):
         name="issue_category"
     ), nullable=False)
     issue_description = Column(String(255), nullable=False)
-    date_created = Column(TIMESTAMP, default=datetime.now(timezone.utc), nullable=False, name='date_created')
-    resolution_date = Column(TIMESTAMP, default=datetime.now(timezone.utc), nullable=True, name='resolution_date')
+    date_created = Column(String(20), default=datetime.now().date, nullable=False, name='date_created')
+    resolution_date = Column(String(20), default=datetime.now().date, nullable=True, name='resolution_date')
     resolution_status = Column(Enum(
         "Resolved", "Pending", "Escalated",
+        name="resolution_status"
     ), nullable=False)
 
-
+# Connect to PostgreSQL
+DATABASE_URL = os.getenv('DB_URL')
+engine = create_engine(DATABASE_URL)
+Session = sessionmaker(bind=engine)
+session = Session()
 
 def init_db():
-    # Connect to PostgreSQL
-    DATABASE_URL = "postgresql://localhost:5432/ecommerce_db"
-    engine = create_engine(DATABASE_URL)
-    Session = sessionmaker(bind=engine)
-    session = Session()
-
     # Create tables
     Base.metadata.create_all(engine)
 
     # Seed DB
     stmt = select(Category)
     if (session.execute(stmt).fetchall() == []):
-        categories = fake_data.categories
+        categories = fake_data.CATEGORIES
         for i in categories:
             category = Category(
                 name = i["category"],
@@ -151,7 +153,7 @@ def init_db():
     stmt = select(Product)
     if (session.execute(stmt).fetchall() == []):
         current = 0
-        products = fake_data.products
+        products = fake_data.PRODUCTS
         for i in products:
             index = (current // 5) + 1
             
@@ -199,3 +201,7 @@ def init_db():
             )
             session.add(address)
         session.commit()
+
+def purge():
+    Base.metadata.drop_all(engine)
+    init_db()

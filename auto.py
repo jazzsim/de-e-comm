@@ -1,20 +1,16 @@
 from typing import List
-from sqlalchemy import create_engine, func
-from sqlalchemy.orm import declarative_base, sessionmaker
-from random import randrange, sample, getrandbits, random
-from db import Address, CartItem, Customer, OrderDetails, Payment, Product, Sales, ShoppingCart
+from sqlalchemy import func
+from random import randrange, sample, getrandbits, random, randint
+from db import session, Address, CartItem, Customer, OrderDetails, Payment, Product, Sales, ShoppingCart
 from math import ceil
+import kafka_prod
 import uuid
 
-Base = declarative_base()
-# Connect to PostgreSQL
-DATABASE_URL = "postgresql://localhost:5432/ecommerce_db"
-engine = create_engine(DATABASE_URL)
-Session = sessionmaker(bind=engine)
-session = Session()
+def automate():
+    add_product_event()
+    checkout_cart()
 
 # trigger every 5 minute
-# every minute pick a random number of customers
 # each customer will be given a chance to add an item to their cart
 def add_product_event():
     number_of_cust_to_choose = randrange(10)
@@ -29,7 +25,7 @@ def add_to_cart(custs: List[Customer]):
         if(getrandbits(1)):
             print(f"custs id = {cust.id}")
             cart = get_cart(cust.id)
-            add_product_to_cart(cart.id)
+            add_product_to_cart(cart)
             
 def get_cart(id: int):
     cart = session.query(ShoppingCart).filter_by(customer_id=id).first()
@@ -39,18 +35,20 @@ def get_cart(id: int):
         session.commit()
     return cart
 
-def add_product_to_cart(cart_id: int):
+def add_product_to_cart(cart: ShoppingCart):
     product_id = randrange(50)
     product = session.query(Product).filter_by(id=product_id).first()
-    quantity = 1
+    quantity = randint(1, product.stock_quantity)
+    if (quantity > 20):
+        quantity = 20
 
-    cart_item = session.query(CartItem).filter_by(cart_id=cart_id, product_id=product_id).first()
+    cart_item = session.query(CartItem).filter_by(cart_id=cart.id, product_id=product_id).first()
     if cart_item:
         cart_item.quantity += quantity
         cart_item.total_price = cart_item.quantity * cart_item.unit_price
     else:
         cart_item = CartItem(
-            cart_id=cart_id,
+            cart_id=cart.id,
             product_id=product_id,
             quantity=quantity,
             unit_price=product.price,
@@ -59,10 +57,10 @@ def add_product_to_cart(cart_id: int):
         session.add(cart_item)
     session.commit()
 
-    product.stock_quantity -= 1
+    product.stock_quantity -= quantity
     session.commit()
+    kafka_prod.add_to_cart_event(product.id, cart.customer_id, quantity)
 
-# triger every 5 minutes
 # 50% of the carts will have a chance to checkout
 # each checkout attempt has 10% chance of cancel/fail
 def checkout_cart():
@@ -97,6 +95,7 @@ def create_order(cart: ShoppingCart):
     session.add(sale)
     session.commit()
     create_order_detail(cart=cart, sale=sale)
+    kafka_prod.create_order_event(cart.id, sale.id)
     return sale
 
 def create_order_detail(cart: ShoppingCart, sale: Sales):
@@ -116,23 +115,25 @@ def create_order_detail(cart: ShoppingCart, sale: Sales):
 def make_payment(sale: Sales):
     # 10% to fail
     failed = random() <= 0.1
+    payment_status = "Paid"
     if(failed):
-        payment = Payment(
-            order_id=sale.id,
-            payment_method="Credit Card",
-            payment_status="Failed",
-            transaction_id=uuid.uuid4()  # Custom function to generate a unique ID
-        )
-        session.add(payment)
-    else:
-        payment = Payment(
-            order_id=sale.id,
-            payment_method="Credit Card",
-            payment_status="Paid",
-            transaction_id=uuid.uuid4()  # Custom function to generate a unique ID
-        )
-        session.add(payment)
+        payment_status = "Failed"
+
+    # randomize method
+    alter_method = random() <= 0.5
+    payment_method = "Credit Card"
+    if(alter_method):
+        payment_method = "E-Wallet"
+
+    payment = Payment(
+        order_id=sale.id,
+        payment_method=payment_method,
+        payment_status=payment_status,
+        transaction_id=uuid.uuid4()  # Custom function to generate a unique ID
+    )
+    session.add(payment)
     session.commit()
+    kafka_prod.make_payment_event(sale.id, payment_method, payment_status)
     return payment
 
 def update_sales(sale : Sales, cart: ShoppingCart, payment: Payment):

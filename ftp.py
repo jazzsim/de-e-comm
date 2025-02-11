@@ -2,19 +2,17 @@ import csv
 import random
 import datetime
 
+from ftplib import FTP_TLS
 from faker import Faker
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import declarative_base, sessionmaker
-from db import Customer, Customer_Support
+from sqlalchemy import select, func
+from db import session, engine, Customer, Customer_Support
+from dotenv import load_dotenv
 
-Base = declarative_base()
-# Connect to PostgreSQL
-DATABASE_URL = "postgresql://localhost:5432/ecommerce_db"
-engine = create_engine(DATABASE_URL)
-Session = sessionmaker(bind=engine)
-session = Session()
+import os
 
-def generate_fake_customer_support_data(output_file, num_records):
+load_dotenv()
+
+def generate_customer_support_data(output_file, num_records):
     # Initialize Faker and define categories for issues
     fake = Faker()
     issue_categories = [
@@ -97,12 +95,80 @@ def generate_fake_customer_support_data(output_file, num_records):
                 resolution_date
             ])
 
+def load_previous_unresolve(writer):
+    # load existing non-resolved tickets and add into new sheet
+    if session.query(Customer_Support).first() != None:
+        unresovled = session.query(Customer_Support).filter(Customer_Support.resolution_status != 'Resolved').all()
+        for un in unresovled:
+            # randomly update status (mock)
+            if (random.getrandbits(1)):
+                writer.writerow([
+                    un.ticket_id,
+                    un.customer_name,
+                    un.email,
+                    un.phone,
+                    un.issue_category,
+                    un.issue_description,
+                    un.date_created,
+                    "Resolved",
+                    datetime.date.today()
+                ])
+
+def delete_prev():
+    yesterday = (datetime.today() - datetime.timedelta(days = 0)).strftime('%Y-%m-%d')
+    
+    prev = f'customer_support_data_{yesterday}.csv'
+    # If file exists, delete it.
+    if os.path.isfile(prev):
+        os.remove(prev)
+    else:
+        # If it fails, inform the user.
+        print("Error: %s file not found" % prev)
+            
+def upload():
+    current_date = datetime.datetime.now().strftime('%Y-%m-%d')
+    filename = f'customer_support_data_{current_date}.csv'
+
+    # FTP server details
+    hostname = os.getenv('FTP_SERVER_HOSTNAME')
+    username = os.getenv('FTP_SERVER_USERNAME')
+    password = os.getenv('FTP_SERVER_PASSWORD')
+    local_file_path =  filename
+    remote_file_path = f'{os.getenv('FTP_SERVER_REMOTE_FILE_PATH')}{filename}'
+
+    # Connect to FTP server
+    ftps = FTP_TLS(hostname)
+
+    try:
+        # Login to the server
+        ftps.login(username, password)
+
+        ftps.prot_p()
+        
+        # Open the local file
+        with open(local_file_path, 'rb') as file:
+            # Upload the file using STOR command
+            ftps.storbinary(f"STOR {remote_file_path}", file)
+            print(f"File successfully uploaded to {remote_file_path}")
+
+    except Exception as e:
+        print(f"Error: {e}")
+
+    finally:
+        # Quit the FTP session
+        ftps.quit()
+
+
+
+# ETL
 def load_into_db():
     # load csv
     import pandas as pd
 
+
+    current_date = datetime.datetime.now().strftime('%Y-%m-%d')
     # Step 1: Read CSV file into a pandas DataFrame
-    csv_file = 'customer_support_data.csv'
+    csv_file = f'customer_support_data_{current_date}.csv'
     df = pd.read_csv(csv_file)
 
     # clear dups
@@ -114,26 +180,10 @@ def load_into_db():
     # rename columns
     df.columns = df.columns.str.replace(' ', '_').str.lower()
 
+    # TODO: update tickets status
+    # 
+
     df.to_sql('customer_support', engine, if_exists='append', index=False)
 
 
     print("CSV data has been loaded to PostgreSQL successfully.")
-
-def load_previous_unresolve(writer):
-    # load existing non-resolved tickets and add into new sheet
-    unresovled = session.query(Customer_Support).filter(Customer_Support.resolution_status.not_like('Resolved')).all()
-    for un in unresovled:
-        # randomly update status
-        if (random.getrandbits(1)):
-            writer.writerow([
-                un.ticket_id,
-                un.customer_name,
-                un.email,
-                un.phone,
-                un.issue_category,
-                un.issue_description,
-                un.date_created,
-                "Resolved",
-                datetime.date.today()
-            ])
-        
