@@ -1,5 +1,5 @@
 from sqlalchemy import create_engine, Column, Integer, String, Date, Boolean, ForeignKey, Enum, Text, DECIMAL, TIMESTAMP, select
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from datetime import datetime, timezone
 from faker import Faker
 from decimal import Decimal
@@ -10,6 +10,10 @@ import fake_data
 import random
 
 load_dotenv()
+
+# Connect to PostgreSQL
+DATABASE_URL = os.getenv('DB_URL')
+engine = create_engine(DATABASE_URL)
 
 Base = declarative_base()
 
@@ -47,7 +51,7 @@ class Category(Base):
 class ShoppingCart(Base):
     __tablename__ = 'shopping_carts'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    customer_id = Column(Integer, ForeignKey('customers.id'), unique=True, nullable=False)
+    customer_id = Column(Integer, ForeignKey('customers.id'), nullable=False)
     created_at = Column(TIMESTAMP, default=datetime.now(timezone.utc))
     updated_at = Column(TIMESTAMP, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
 
@@ -124,17 +128,17 @@ class Customer_Support(Base):
         name="resolution_status"
     ), nullable=False)
 
-# Connect to PostgreSQL
-DATABASE_URL = os.getenv('DB_URL')
-engine = create_engine(DATABASE_URL)
-Session = sessionmaker(bind=engine)
-session = Session()
+def get_session() -> sessionmaker[Session]:
+    Session = sessionmaker(bind=engine)
+    return Session
 
 def init_db():
     # Create tables
     Base.metadata.create_all(engine)
 
     # Seed DB
+    Session = get_session()
+    session = Session()
     stmt = select(Category)
     if (session.execute(stmt).fetchall() == []):
         categories = fake_data.CATEGORIES
@@ -160,20 +164,19 @@ def init_db():
             product = Product(
                 name= i["product"],
                 description= i["description"],
-                price= Decimal(random.random()) * 100,
-                stock_quantity=random.randint(1, 100),  # Random stock quantity between 1 and 100
+                price= Decimal(random.random()) * 20,
+                stock_quantity=random.randint(20, 200),  # Random stock quantity between 20 and 200
                 category_id= index,
                 image_url=fake.image_url(),
             )
             session.add(product)
             current += 1
-
         session.commit()  # Save products to the database
 
 
     stmt = select(Customer)
     if (session.execute(stmt).fetchall() == []):
-        for _ in range(20):
+        for _ in range(200):
             customer = Customer(
                 first_name = fake.first_name(),
                 last_name = fake.last_name(),
@@ -183,12 +186,11 @@ def init_db():
                 date_of_birth = fake.date_of_birth(),
             )
             session.add(customer)
-
         session.commit()
 
     stmt = select(Address)
     if (session.execute(stmt).fetchall() == []):
-        for customer_id in range(20):
+        for customer_id in range(200):
             address = Address(
                 customer_id = customer_id + 1,
                 street=fake.street_address(),

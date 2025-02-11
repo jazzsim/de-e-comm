@@ -5,7 +5,7 @@ import datetime
 from ftplib import FTP_TLS
 from faker import Faker
 from sqlalchemy import select, func
-from db import session, engine, Customer, Customer_Support
+from db import engine, Customer, Customer_Support, get_session
 from dotenv import load_dotenv
 
 import os
@@ -45,6 +45,8 @@ def generate_customer_support_data(output_file, num_records):
 
         load_previous_unresolve(writer)
 
+        Session = get_session()
+        session = Session()
         # get all customers from db
         stmt = select(Customer)
         customers = session.execute(stmt).fetchall()
@@ -96,6 +98,8 @@ def generate_customer_support_data(output_file, num_records):
             ])
 
 def load_previous_unresolve(writer):
+    Session = get_session()
+    session = Session()
     # load existing non-resolved tickets and add into new sheet
     if session.query(Customer_Support).first() != None:
         unresovled = session.query(Customer_Support).filter(Customer_Support.resolution_status != 'Resolved').all()
