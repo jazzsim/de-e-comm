@@ -22,8 +22,7 @@ def main():
     # Schedule tasks
     schedule.every(5).seconds.do(automate)
     schedule.every().day.at("00:00").do(generate_csv)  # Run once per day at midnight
-    schedule.every(7).day.do(purge)
-    
+    schedule.every(7).days.do(purge)
     while True:
         schedule.run_pending()
         time.sleep(1)  # Sleep to prevent CPU overuse

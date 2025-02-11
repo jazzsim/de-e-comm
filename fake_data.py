@@ -1,5 +1,5 @@
 # List of 10 random product categories with descriptions
-categories = [
+CATEGORIES = [
     {"category": "Electronics", "description": "Devices and gadgets powered by electricity, ranging from smartphones to computers."},
     {"category": "Home Appliances", "description": "Household items designed to simplify tasks such as cooking, cleaning, and maintenance."},
     {"category": "Clothing", "description": "Wearable items including garments, shoes, and accessories for all seasons and occasions."},
@@ -13,7 +13,7 @@ categories = [
 ]
 
 # List of 20 products based on the above categories, with descriptions
-products = [
+PRODUCTS = [
     {"product": "Smartphone", "category": "Electronics", "description": "A handheld mobile device for communication, internet browsing, and media consumption."},
     {"product": "Laptop", "category": "Electronics", "description": "A portable personal computer with a screen, keyboard, and battery."},
     {"product": "Bluetooth Speaker", "category": "Electronics", "description": "A wireless speaker that connects to devices via Bluetooth to play audio."},

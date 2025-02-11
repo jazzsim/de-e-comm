@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, Date, Boolean, ForeignKey, Enum, Text, DECIMAL, TIMESTAMP, select
+from sqlalchemy import create_engine, Column, Integer, String, Date, Boolean, ForeignKey, Enum, Text, DECIMAL, TIMESTAMP, select, func, MetaData, text
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from datetime import datetime, timezone
 from faker import Faker
@@ -27,8 +27,8 @@ class Customer(Base):
     phone = Column(String(20), nullable=True)
     password_hash = Column(String(255), nullable=False)
     date_of_birth = Column(Date, nullable=True)
-    created_at = Column(TIMESTAMP, default=datetime.now(timezone.utc))
-    updated_at = Column(TIMESTAMP, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    created_at = Column(TIMESTAMP, default=func.now())
+    updated_at = Column(TIMESTAMP, default=func.now(), onupdate=func.now())
 
 class Product(Base):
     __tablename__ = 'products'
@@ -39,8 +39,8 @@ class Product(Base):
     stock_quantity = Column(Integer, nullable=False)
     category_id = Column(Integer, ForeignKey('categories.id'), nullable=True)
     image_url = Column(String(255), nullable=True)
-    created_at = Column(TIMESTAMP, default=datetime.now(timezone.utc))
-    updated_at = Column(TIMESTAMP, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    created_at = Column(TIMESTAMP, default=func.now())
+    updated_at = Column(TIMESTAMP, default=func.now(), onupdate=func.now())
 
 class Category(Base):
     __tablename__ = 'categories'
@@ -52,8 +52,8 @@ class ShoppingCart(Base):
     __tablename__ = 'shopping_carts'
     id = Column(Integer, primary_key=True, autoincrement=True)
     customer_id = Column(Integer, ForeignKey('customers.id'), nullable=False)
-    created_at = Column(TIMESTAMP, default=datetime.now(timezone.utc))
-    updated_at = Column(TIMESTAMP, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    created_at = Column(TIMESTAMP, default=func.now())
+    updated_at = Column(TIMESTAMP, default=func.now(), onupdate=func.now())
 
 class CartItem(Base):
     __tablename__ = 'cart_items'
@@ -68,7 +68,7 @@ class Sales(Base):
     __tablename__ = 'sales'
     id = Column(Integer, primary_key=True, autoincrement=True)
     customer_id = Column(Integer, ForeignKey('customers.id'), nullable=False)
-    order_date = Column(TIMESTAMP, default=datetime.now(timezone.utc))
+    order_date = Column(TIMESTAMP, default=func.now())
     order_status = Column(Enum('Pending', 'Completed', 'Canceled', name='order_status'), nullable=False)
     total_amount = Column(DECIMAL(10, 2), nullable=False)
     shipping_address_id = Column(Integer, ForeignKey('addresses.id'), nullable=False)
@@ -100,7 +100,7 @@ class Payment(Base):
     __tablename__ = 'payments'
     id = Column(Integer, primary_key=True, autoincrement=True)
     order_id = Column(Integer, ForeignKey('sales.id'), nullable=False)
-    payment_date = Column(TIMESTAMP, default=datetime.now(timezone.utc))
+    payment_date = Column(TIMESTAMP, default=func.now())
     payment_method = Column(Enum('Credit Card', 'E-Wallet', name='payment_method'), nullable=False)
     payment_status = Column(Enum('Paid', 'Pending', 'Failed', name='payment_status'), nullable=False)
     transaction_id = Column(String(100), unique=True, nullable=True)
@@ -205,5 +205,16 @@ def init_db():
         session.commit()
 
 def purge():
-    Base.metadata.drop_all(engine)
-    init_db()
+    Session = get_session()
+    session = Session()
+    # Restart tables
+    session.execute(text(f"TRUNCATE TABLE {Payment.__tablename__} CASCADE"))        
+    session.execute(text(f"TRUNCATE TABLE {ShoppingCart.__tablename__} CASCADE"))        
+    # reset id to 1
+    session.execute(text(f"ALTER SEQUENCE {Payment.__tablename__}_id_seq RESTART WITH 1"))
+    session.execute(text(f"ALTER SEQUENCE {OrderDetails.__tablename__}_id_seq RESTART WITH 1"))
+    session.execute(text(f"ALTER SEQUENCE {CartItem.__tablename__}_id_seq RESTART WITH 1"))
+    session.execute(text(f"ALTER SEQUENCE {Sales.__tablename__}_id_seq RESTART WITH 1"))
+    session.execute(text(f"ALTER SEQUENCE {ShoppingCart.__tablename__}_id_seq RESTART WITH 1"))
+    session.commit()
+    session.close()
