@@ -1,8 +1,11 @@
-from sqlalchemy import create_engine, Column, Integer, String, Date, Boolean, ForeignKey, Enum, Text, DECIMAL, TIMESTAMP
+import logging
+from sqlalchemy import create_engine, Column, Integer, String, Date, Boolean, ForeignKey, Enum, Text, DECIMAL, TIMESTAMP, text, insert, func
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
-from datetime import datetime, timezone
+from datetime import datetime
 from dotenv import load_dotenv
+from constant import CUSTOMERS_KEYS, ADDRESSES_KEYS, CATEGORIES_KEYS, PRODUCTS_KEYS
 
+import db.source_db
 import os
 
 load_dotenv()
@@ -49,16 +52,16 @@ class FactCart(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     customer_id = Column(Integer, ForeignKey('dim_customer.id'), nullable=False)
     sale_id = Column(Integer, ForeignKey('fact_sales.id'), nullable=True) # exist when user checkout
-    cart_created_timestamp = Column(TIMESTAMP, default=datetime.now(timezone.utc))
-    cart_updated_timestamp = Column(TIMESTAMP, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    cart_created_timestamp = Column(TIMESTAMP, default=func.now())
+    cart_updated_timestamp = Column(TIMESTAMP, default=func.now(), onupdate=func.now())
 
 class FactProductStock(Base):
     __tablename__ = 'fact_product_stock'
     id = Column(Integer, primary_key=True, autoincrement=True)
     product_id = Column(Integer, ForeignKey('dim_product.id'), nullable=False)
     stock_quantity = Column(Integer, nullable=False)
-    created_at = Column(TIMESTAMP, default=datetime.now(timezone.utc))
-    updated_at = Column(TIMESTAMP, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    created_at = Column(TIMESTAMP, default=func.now())
+    updated_at = Column(TIMESTAMP, default=func.now(), onupdate=func.now())
 
 
 # Define the database models
@@ -70,8 +73,8 @@ class DimCustomer(Base):
     email = Column(String(100), unique=True, nullable=False)
     phone = Column(String(20), nullable=True)
     date_of_birth = Column(Date, nullable=True)
-    created_at = Column(TIMESTAMP, default=datetime.now(timezone.utc))
-    updated_at = Column(TIMESTAMP, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    created_at = Column(TIMESTAMP, default=func.now())
+    updated_at = Column(TIMESTAMP, default=func.now(), onupdate=func.now())
 
 class DimProduct(Base):
     __tablename__ = 'dim_product'
@@ -81,8 +84,8 @@ class DimProduct(Base):
     price = Column(DECIMAL(10, 2), nullable=False)
     category_id = Column(Integer, ForeignKey('dim_category.id'), nullable=True)
     image_url = Column(String(255), nullable=True)
-    created_at = Column(TIMESTAMP, default=datetime.now(timezone.utc))
-    updated_at = Column(TIMESTAMP, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    created_at = Column(TIMESTAMP, default=func.now())
+    updated_at = Column(TIMESTAMP, default=func.now(), onupdate=func.now())
 
 class DimCategory(Base):
     __tablename__ = 'dim_category'
@@ -144,3 +147,102 @@ def get_session() -> sessionmaker[Session]:
 def init_db():
     # Create tables
     Base.metadata.create_all(engine)
+
+    # set up dim tables
+    if (loaded(DimCustomer) is False):
+        setup_customer()
+
+    if (loaded(DimAddress) is False):
+        setup_address()
+
+    if (loaded(DimCategory) is False):
+        setup_category()
+
+    if (loaded(DimProduct) is False):
+        setup_product()
+
+def loaded(table):
+    Session = get_session()
+    session = Session()
+    with Session() as session:
+        data = session.query(table).first()
+        if (data):
+            return True
+    return False
+
+def setup_customer():
+    """Extracts CUSTOMERS data from source DB and loads into warehouse."""
+    table_name = 'CUSTOMERS'
+
+
+    # Use explicit column selection for clarity and security
+    sql = text(f"""
+        SELECT id, first_name, last_name, email, phone, date_of_birth, created_at, updated_at
+        FROM {table_name}
+    """)
+
+    setup_dim(table_name, DimCustomer, sql, CUSTOMERS_KEYS)
+
+def setup_address():
+    """Extracts ADDRESSES data from source DB and loads into warehouse."""
+    table_name = 'ADDRESSES'
+
+    # Use explicit column selection for clarity and security
+    sql = text(f"""
+        SELECT * FROM {table_name}
+    """)
+
+    setup_dim(table_name, DimAddress, sql, ADDRESSES_KEYS)
+
+def setup_category():
+    """Extracts CATEGORIES data from source DB and loads into warehouse."""
+    table_name = 'CATEGORIES'
+
+    sql = text(f"""
+        SELECT * FROM {table_name}
+    """)
+
+    setup_dim(table_name, DimCategory, sql, CATEGORIES_KEYS)
+
+def setup_product():
+    """Extracts PRODUCTS data from source DB and loads into warehouse."""
+    table_name = 'PRODUCTS'
+
+    sql = text(f"""
+               SELECT 
+               id, name, description, price, category_id, image_url, created_at, updated_at 
+               FROM {table_name}
+    """)
+
+    setup_dim(table_name, DimProduct, sql, PRODUCTS_KEYS)
+
+def setup_dim(source_table, target_table, sql, keys):
+    logging.basicConfig(level=logging.INFO)
+
+    sSession = db.source_db.get_session()
+    wSession = get_session()
+
+    try:
+        with sSession() as source_session, wSession() as warehouse_session:
+
+            logging.info(f"Starting ETL process for {target_table.__tablename__}")
+
+            data = source_session.execute(sql).fetchall()
+
+            if data:
+                params_dict = [dict(zip(keys, record)) for record in data]
+                
+                warehouse_session.execute(
+                    statement=insert(target_table),
+                    params=params_dict
+                )
+
+                warehouse_session.commit()
+                logging.info(f"Inserted {len([params_dict])} records into {target_table.__tablename__}")
+            else:
+                logging.info(f"No data found in source table {source_table}")
+
+    except Exception as e:
+        logging.error(f"Error in ETL process: {e}", exc_info=True)
+
+    logging.info("ETL process completed successfully!")

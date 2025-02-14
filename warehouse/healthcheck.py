@@ -1,4 +1,4 @@
-from db import get_session, Session, FactSales
+from warehouse.db.warehouse_db import get_session, Session, FactSales
 def check_db_connection():
     try:
         session = get_session()
