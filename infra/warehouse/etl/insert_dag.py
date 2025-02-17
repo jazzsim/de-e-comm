@@ -1,5 +1,5 @@
 from etl.etl_func import yesterday_date, upsert
-
+import datetime
 
 # batch insert dim
 def insert_customer_dim():
