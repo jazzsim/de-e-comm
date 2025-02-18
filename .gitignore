@@ -37,3 +37,6 @@ env.bak/
 venv.bak/
 
 .DS_Store
+
+# Airflow
+logs/
