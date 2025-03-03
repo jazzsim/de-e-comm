@@ -38,6 +38,14 @@ CREATE TABLE dim_address (
     is_default_billing BOOLEAN DEFAULT FALSE
 );
 
+CREATE TABLE dim_cart (
+    id SERIAL PRIMARY KEY,
+    customer_id INTEGER REFERENCES dim_customer(id) NOT NULL,
+    sale_id INTEGER,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
 CREATE TABLE dim_date (
     id SERIAL PRIMARY KEY,
     full_date VARCHAR(20) NOT NULL,
@@ -92,6 +100,7 @@ CREATE TABLE fact_payments (
 
 -- Add in constraint for circular dependency --
 ALTER TABLE fact_sales ADD CONSTRAINT fact_sales_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES fact_payments (id);
+ALTER TABLE dim_cart ADD CONSTRAINT dim_cart_sale_id_fkey FOREIGN KEY (sale_id) REFERENCES fact_sales (id);
 
 
 CREATE TABLE fact_order_details (
@@ -103,14 +112,11 @@ CREATE TABLE fact_order_details (
     total_price DECIMAL(10,2) NOT NULL
 );
 
-CREATE TABLE fact_cart (
+CREATE TABLE fact_cart_activity (
     id SERIAL PRIMARY KEY,
-    customer_id INTEGER REFERENCES dim_customer(id) NOT NULL,
+    cart_id INTEGER REFERENCES dim_cart(id) NOT NULL,
     product_id INTEGER REFERENCES dim_product(id) NOT NULL,
-    quantity INTEGER NOT NULL,
-    sale_id INTEGER REFERENCES fact_sales(id),
-    cart_created_timestamp TIMESTAMP DEFAULT NOW(),
-    cart_updated_timestamp TIMESTAMP DEFAULT NOW()
+    quantity INTEGER NOT NULL
 );
 
 CREATE TABLE fact_product_stock (
