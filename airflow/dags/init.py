@@ -91,7 +91,7 @@ def initialize_warehouse_db():
         df = extract('customer_support.sql')
         load('dim_customer_support', df)
         
-    @task_group(group_id='dim_date')
+    @task()
     def initDimDate():
         pg_hook = PostgresHook(postgres_conn_id='warehouse_db')
         

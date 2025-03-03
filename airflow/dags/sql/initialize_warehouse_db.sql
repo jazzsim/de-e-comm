@@ -106,6 +106,8 @@ CREATE TABLE fact_order_details (
 CREATE TABLE fact_cart (
     id SERIAL PRIMARY KEY,
     customer_id INTEGER REFERENCES dim_customer(id) NOT NULL,
+    product_id INTEGER REFERENCES dim_product(id) NOT NULL,
+    quantity INTEGER NOT NULL,
     sale_id INTEGER REFERENCES fact_sales(id),
     cart_created_timestamp TIMESTAMP DEFAULT NOW(),
     cart_updated_timestamp TIMESTAMP DEFAULT NOW()
