@@ -40,3 +40,11 @@ For the FTP server, we have the following conditions:<br>
 
 ### Kafka
 Kafka will stream customer's store and checkout actions into `fact_cart_activity` and `fact_product_stock`. This will be a real-time ETL to display store performance in real time and check on product restock status.
+
+<!-- Fact Cart -->
+### Dim_Cart & Fact_Cart_Activity
+Track user's cart activity. It will keep track of all the products user added. 
+
+Proposed usage of these table:
+- Track user product preference for marketing purposes
+- Track cart conversion time (dim_cart table)
