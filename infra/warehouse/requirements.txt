@@ -11,5 +11,5 @@ pytz==2025.1
 schedule==1.2.2
 six==1.17.0
 SQLAlchemy==2.0.37
-typing_extensions==4.12. 
+typing_extensions==4.12.2
 tzdata==2025.1

@@ -73,15 +73,9 @@ services:
     ports:
       - "21334:21334" 
     env_file: ./warehouse/.env
-    # DEV
+    # For reference
     develop:
       watch:
-        - action: sync
-          path: ./warehouse/etl.py
-          target: /app/etl.py
-        - action: sync
-          path: ./warehouse/db/warehouse_db.py
-          target: /app/db/warehouse_db.py
         - action: sync+restart
           path: ./warehouse/main.py
           target: /app/main.py
@@ -93,4 +87,4 @@ services:
       interval: 5s
       timeout: 10s
       retries: 5
-    # restart: always #disabled for DEV
+    restart: always

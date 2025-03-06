@@ -16,4 +16,4 @@ RUN apt-get update \
     && apt-get autoremove -yqq --purge wget && rm -rf /var/lib/apt/lists/*
 
 # Wait for PostgreSQL before starting the application
-CMD dockerize -wait tcp://warehouse-postgresql:5432 --timeout 60s && python main.py
+CMD dockerize -wait tcp://kafka:9092 -wait tcp://warehouse-postgresql:5432 --timeout 60s && python main.py
