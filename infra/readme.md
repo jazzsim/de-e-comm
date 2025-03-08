@@ -4,6 +4,7 @@ The docker compose contains the following containers
 <img src=../diagrams/source_erd.png>
 * Warehouse Database (PostgreSQL)
 <img src=../diagrams/warehouse_erd.png>
+
 * Apache Zookeeper (zookeeper)
 * Apache Kafka (kafka)
 * Python script (ecommerce-data-source)
