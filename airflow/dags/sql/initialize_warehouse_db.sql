@@ -26,21 +26,10 @@ CREATE TABLE dim_product (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE dim_address (
-    id SERIAL PRIMARY KEY,
-    customer_id INTEGER REFERENCES dim_customer(id) NOT NULL,
-    street VARCHAR(255) NOT NULL,
-    city VARCHAR(100) NOT NULL,
-    state VARCHAR(100) NOT NULL,
-    postal_code VARCHAR(20) NOT NULL,
-    country VARCHAR(100) NOT NULL,
-    is_default_shipping BOOLEAN DEFAULT FALSE,
-    is_default_billing BOOLEAN DEFAULT FALSE
-);
-
 CREATE TABLE dim_cart (
     id SERIAL PRIMARY KEY,
     customer_id INTEGER REFERENCES dim_customer(id) NOT NULL,
+    cart_id INTEGER UNIQUE NOT NULL,
     sale_id INTEGER,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
@@ -48,7 +37,7 @@ CREATE TABLE dim_cart (
 
 CREATE TABLE dim_date (
     id SERIAL PRIMARY KEY,
-    full_date VARCHAR(20) NOT NULL,
+    full_date DATE NOT NULL,
     quarter INTEGER NOT NULL,
     year INTEGER NOT NULL,
     month INTEGER NOT NULL,
@@ -80,8 +69,6 @@ CREATE TABLE fact_sales (
     order_status ORDER_STATUS NOT NULL,
     order_date_id INTEGER REFERENCES dim_date(id) NOT NULL,
     customer_id INTEGER REFERENCES dim_customer(id) NOT NULL,
-    shipping_address_id INTEGER REFERENCES dim_address(id) NOT NULL,
-    billing_address_id INTEGER REFERENCES dim_address(id) NOT NULL,
     payment_id INTEGER
 );
 
@@ -90,7 +77,7 @@ CREATE TYPE payment_status AS ENUM ('Paid', 'Pending', 'Failed');
 
 CREATE TABLE fact_payments (
     id SERIAL PRIMARY KEY,
-    order_id INTEGER REFERENCES fact_sales(id) NOT NULL,
+    sale_id INTEGER REFERENCES fact_sales(id) NOT NULL,
     payment_date_id INTEGER REFERENCES dim_date(id) NOT NULL,
     payment_method payment_method NOT NULL,
     payment_status payment_status NOT NULL,
@@ -108,13 +95,12 @@ CREATE TABLE fact_order_details (
     sale_id INTEGER REFERENCES fact_sales(id) NOT NULL,
     product_id INTEGER REFERENCES dim_product(id) NOT NULL,
     quantity INTEGER NOT NULL,
-    unit_price DECIMAL(10,2) NOT NULL,
     total_price DECIMAL(10,2) NOT NULL
 );
 
 CREATE TABLE fact_cart_activity (
     id SERIAL PRIMARY KEY,
-    cart_id INTEGER REFERENCES dim_cart(id) NOT NULL,
+    cart_id INTEGER REFERENCES dim_cart(cart_id) NOT NULL,
     product_id INTEGER REFERENCES dim_product(id) NOT NULL,
     quantity INTEGER NOT NULL
 );

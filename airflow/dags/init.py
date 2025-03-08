@@ -22,7 +22,7 @@ def initialize_warehouse_db():
     def purge():
         pg_hook = PostgresHook(postgres_conn_id='warehouse_db')
         try:
-            pg_hook.run("TRUNCATE TABLE dim_date, dim_customer, dim_address, dim_category, dim_product, dim_customer_support, fact_sales, fact_payments, fact_order_details, fact_cart CASCADE", autocommit=True)
+            pg_hook.run("TRUNCATE TABLE dim_cart, dim_category, dim_customer, dim_customer_support, dim_date, dim_product, fact_cart_activity, fact_order_details, fact_payments, fact_product_stock, fact_sales CASCADE", autocommit=True)
 
         except Exception as e:
             logging.error(e)
@@ -70,11 +70,6 @@ def initialize_warehouse_db():
         df = transform(df, ['created_at', 'updated_at'])
         load('dim_customer', df)
     
-    @task_group(group_id='dim_address')
-    def initDimAddress():
-        df = extract('addresses.sql')
-        load('dim_address', df)
-        
     @task_group(group_id='dim_category')
     def initDimCategory():
         df = extract('categories.sql')
@@ -99,6 +94,6 @@ def initialize_warehouse_db():
             sql = f.read()
         pg_hook.run(sql, autocommit=True)
     
-    purge() >> create_tables() >> initDimDate() >> initDimCustomer() >> initDimAddress() >> initDimCategory() >> initDimProduct() >> initDimCustomerSupport()
+    purge() >> create_tables() >> initDimDate() >> initDimCustomer() >> initDimCategory() >> initDimProduct() >> initDimCustomerSupport()
     
 initialize_warehouse_db()
