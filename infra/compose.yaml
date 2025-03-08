@@ -51,12 +51,17 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
-  source-db:
+  ecommerce-data-source:
     build:
       context: ./source
     ports:
       - "21333:21333" 
     env_file: ./source/.env
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./source/main.py
+          target: /app/main.py
     depends_on:
       - ecommerce-postgresql
       - kafka
@@ -67,18 +72,18 @@ services:
       retries: 5
     restart: always
 
-  warehouse-db:
+  kafka-listener:
     build:
       context: ./warehouse
     ports:
       - "21334:21334" 
     env_file: ./warehouse/.env
     # For reference
-    develop:
-      watch:
-        - action: sync+restart
-          path: ./warehouse/main.py
-          target: /app/main.py
+    # develop:
+    #   watch:
+    #     - action: sync+restart
+    #       path: ./warehouse/main.py
+    #       target: /app/main.py
     depends_on:
       - warehouse-postgresql
       - kafka

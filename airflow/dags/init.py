@@ -1,5 +1,4 @@
 import os
-import datetime
 import logging
 
 from pandas import DataFrame
@@ -16,13 +15,13 @@ default_args = {
     'start_date': days_ago(1),
 }
 
-@dag(default_args=default_args, tags=['Initialization'], schedule="@once")
+@dag(default_args=default_args, tags=['Initialization'], schedule=None)
 def initialize_warehouse_db():
     @task
     def purge():
         pg_hook = PostgresHook(postgres_conn_id='warehouse_db')
         try:
-            pg_hook.run("TRUNCATE TABLE dim_cart, dim_category, dim_customer, dim_customer_support, dim_date, dim_product, fact_cart_activity, fact_order_details, fact_payments, fact_product_stock, fact_sales CASCADE", autocommit=True)
+            pg_hook.run("TRUNCATE TABLE dim_cart, dim_category, dim_customer, dim_customer_support, dim_date, dim_product, fact_cart_activity, fact_order_details, fact_payments, fact_sales CASCADE", autocommit=True)
 
         except Exception as e:
             logging.error(e)

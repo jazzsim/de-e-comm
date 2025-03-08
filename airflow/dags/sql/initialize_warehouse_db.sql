@@ -104,11 +104,3 @@ CREATE TABLE fact_cart_activity (
     product_id INTEGER REFERENCES dim_product(id) NOT NULL,
     quantity INTEGER NOT NULL
 );
-
-CREATE TABLE fact_product_stock (
-    id SERIAL PRIMARY KEY,
-    product_id INTEGER REFERENCES dim_product(id) NOT NULL,
-    stock_quantity INTEGER NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);

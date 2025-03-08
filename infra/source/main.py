@@ -3,7 +3,6 @@ from db import init_db, purge
 from ftp import generate_customer_support_data, delete_prev, upload
 from random import randrange
 from datetime import datetime
-from kafka_prod import create_cart_event
 
 import time
 import schedule
@@ -18,13 +17,14 @@ def generate_csv():
     upload()
 
 def main():
-
-    create_cart_event(43, 18);
-
-    # # Schedule tasks
-    # schedule.every(5).seconds.do(automate)
-    # schedule.every().day.at("00:00").do(generate_csv)  # Run once per day at midnight
-    schedule.every(25).days.do(purge)
+    # change to True to start the schedule
+    start_schedule = False
+    
+    # Schedule tasks
+    if start_schedule:
+        schedule.every(5).seconds.do(automate)
+        schedule.every().day.at("00:00").do(generate_csv)  # Run once per day at midnight
+        schedule.every(25).days.do(purge)
     while True:
         schedule.run_pending()
         time.sleep(1)  # Sleep to prevent CPU overuse

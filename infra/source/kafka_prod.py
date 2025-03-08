@@ -85,12 +85,3 @@ def order_details_event(sale_id: int, product_id: int, quantity: int, total_pric
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
     producer.send('store-topic', value=event)
-    
-
-# fact order details
-def success_sale_event(sale_id: int):
-    event = {
-        "type": Event.SUCCESS_SALE.name,
-        "sale_id": sale_id,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    }

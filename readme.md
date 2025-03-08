@@ -5,46 +5,53 @@ The **aim** of this project would be be familiar with data engineering concepts 
 
 <img src=diagrams/project_outline.png alt="high-level project overview">
 
-## Source Systems 
-The project consists of two kind of source systems. 
-- Operational database (PostgreSQL)
-- FTP server
+## Folder Structure
 
-The operational database is a simple e-commerce
-<img src=diagrams/source_erd.png>
+The project is separated into airflow folder and infra folder, each contains a docker compose file. Kindly refer to the `readme.md` in respective folders for further documentations.
 
-**User activities and sales data will be randomly generated on a schedule.*
+```
+Simplified overview of folder structure
 
-The FTP server mimic a scenerio where a customer support report is uploaded daily. The report consists of the new tickets and any previous tickets that got resolved on that day. After a new report is uploaded, the previous report will be deleted.
+.
+├── airflow/
+│   ├── dags/
+│   │   ├── sql/
+│   │   ├── daily_batch_etl.py
+│   │   └── init.py
+│   ├── docker-compose.yaml
+│   └── requirements.txt
+└── infra/
+    ├── source/
+    │   └── main.py
+    ├── warehouse/
+    │   └── main.py
+    ├── docker-compose.yaml
+    └── requirements.txt
+```
 
-## Dashboard
-The dashboard will present basic analysis about sales, products and customers. There will also be fake live metrics streaming from Kafka, namely website interactions and customer's actions related to store.
+## System Design
+<img src=diagrams/system_design/dockers.png alt="Docker services">
+<img src=diagrams/system_design/system_design.png alt="system design overview">
 
-<!-- link to dashboard -->
 
-## Data Warehouse
-Based on the requirements of the Dashboard, I decided to design the data warehouse with Star schema. Mainly because the operational database schema is very simple. Which also leads to the data warehouse being very similar to the source.
+## Execute Project
+Running this project isn't straightforward. We will have to make sure `warehouse_db` are synced with `source_db` before we start the scheduler. We would run `infra/source/main.py` to create database and generate fake data (customers, projects, categories, etc.), and run **Airflow** to initialize `warehouse_db` and sync both databases.
 
-### ERD
-<img src=diagrams/warehouse_erd.png>
+### Steps
+1. ` cd infra && docker compose up --build --watch`
+0. Open a new terminal and run ` cd airflow && docker compose up --build -d`
+0. Login to **Airflow** on `localhost:8080` with `airflow` as credentials
+0. Setup database connection on **Airflow**
 
-<!-- Data warehouse ERD -->
+    <img src=diagrams/execute_project/airflow_connections.png alt="Airflow connection UI">
+    <img src=diagrams/execute_project/source_connection_string.png alt="source_db conenction string">
+    <img src=diagrams/execute_project/warehouse_connection_string.png alt="warehouse_db conenction string">
 
-### ETL
-For this project, most of the ETL are normal ingestion, with some minor adjustment such as intorducing `dim_date` field to some of the tables.
+0. Run `initialize_warehouse_db` DAG and wait for it to complete.
+<img src=diagrams/airflow/dag_graph.png alt="success dag">
 
-For the FTP server, we have the following conditions:<br>
-*The csv will only contains that day's tickets*<br>
-*Only older ticket that is resolved will be included the csv*<br>
-*If ticket is not resolved after 7 days, it should be closed*
+0. Open `./infra/source/main.py` and change `start_schedule` to `True`
+0. Wait for `ecommerce-data-source` container to restart
+0. Check `kafka-listener` container to verify the setup is completed
+<img src=diagrams/execute_project/kafka_listener_log.png alt="success dag">
 
-### Kafka
-Kafka will stream customer's store and checkout actions into `fact_cart_activity` and `fact_product_stock`. This will be a real-time ETL to display store performance in real time and check on product restock status.
-
-<!-- Fact Cart -->
-### Dim_Cart & Fact_Cart_Activity
-Track user's cart activity. It will keep track of all the products user added. 
-
-Proposed usage of these table:
-- Track user product preference for marketing purposes
-- Track cart conversion time (dim_cart table)
