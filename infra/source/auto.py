@@ -37,12 +37,14 @@ def add_to_cart(session: Session):
             cart = get_cart(id=cust.id, session=session)
             add_product_to_cart(cart, session)
             
-def get_cart(id: int ,session: Session, create : bool = True ):
+def get_cart(id: int ,session: Session):
     cart = session.query(ShoppingCart).filter(ShoppingCart.customer_id==id).first()
-    if not cart and create:
+    if not cart:
         cart = ShoppingCart(customer_id=id)
         session.add(cart)
         session.commit()
+        # emit create cart event
+        kafka_prod.create_cart_event(id, cart.id)
     return cart
 
 def add_product_to_cart(cart: ShoppingCart, session: Session):
@@ -73,7 +75,8 @@ def add_product_to_cart(cart: ShoppingCart, session: Session):
 
     product.stock_quantity -= quantity
     session.commit()
-    kafka_prod.add_to_cart_event(product.id, cart.customer_id, quantity)
+    # emit add to cart event
+    kafka_prod.add_to_cart_event(cart.id, product_id, quantity)
 
 def remove_from_cart(session: Session):
     carts = get_random_cart(session)
@@ -139,8 +142,8 @@ def create_order(cart: ShoppingCart, session: Session):
     )
     session.add(sale)
     session.commit()
+    kafka_prod.create_sales_event(str(total_amount), "Pending", cart.customer_id)
     create_order_detail(cart=cart, sale=sale, session=session)
-    kafka_prod.create_order_event(cart.id, sale.id)
     return sale
 
 def create_order_detail(cart: ShoppingCart, sale: Sales, session: Session):
@@ -178,7 +181,10 @@ def make_payment(sale: Sales, session: Session):
     )
     session.add(payment)
     session.commit()
-    kafka_prod.make_payment_event(sale.id, payment_method, payment_status)
+    kafka_prod.make_payment_event(sale.id, payment_method, payment_status, payment.transaction_id)
+    # if payment success, emit success sale event
+    if(payment_status == "Paid"):
+        success_sale_event(session, sale, payment.transaction_id)
     return payment
 
 def update_sales(sale : Sales, cart: ShoppingCart, payment: Payment, session: Session):
@@ -190,3 +196,12 @@ def update_sales(sale : Sales, cart: ShoppingCart, payment: Payment, session: Se
         session.query(CartItem).filter(CartItem.cart_id==cart.id).delete()
         session.query(ShoppingCart).filter(ShoppingCart.id==cart.id).delete()
     session.commit()
+
+# kafka func
+def success_sale_event(session: Session, sale: Sales, transaction_id: str):
+    kafka_prod.success_sale_event(sale.id, transaction_id)
+    # get order details of sale
+    order_details = session.query(OrderDetails).filter(OrderDetails.order_id == sale.id).all()
+    for order_detail in order_details:
+        kafka_prod.order_details_event(sale.id, order_detail.product_id, order_detail.quantity, str(order_detail.total_price))
+    

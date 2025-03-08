@@ -18,7 +18,6 @@ def generate_csv():
     upload()
 
 def main():
-    init_db()
 
     create_cart_event(43, 18);
 
@@ -37,4 +36,5 @@ def main():
     # 4. if ticket is not resolved after 7 days, it will be closed
     # load_into_db()
 
+init_db()
 main()
