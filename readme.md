@@ -38,20 +38,20 @@ Simplified overview of folder structure
 Running this project isn't straightforward. We will have to make sure `warehouse_db` are synced with `source_db` before we start the scheduler. We would run `infra/source/main.py` to create database and generate fake data (customers, projects, categories, etc.), and run **Airflow** to initialize `warehouse_db` and sync both databases.
 
 ### Steps
-1. ` cd infra && docker compose up --build --watch`
-0. Open a new terminal and run ` cd airflow && docker compose up --build -d`
-0. Login to **Airflow** on `localhost:8080` with `airflow` as credentials
-0. Setup database connection on **Airflow**
+1. `cd infra && docker compose up --build --watch`
+2. Open a new terminal and run `cd airflow && docker compose up --build -d`
+3. Login to **Airflow** on `localhost:8080` with `airflow` as credentials
+4. Setup database connection on **Airflow**
 
     <img src=diagrams/execute_project/airflow_connections.png alt="Airflow connection UI">
     <img src=diagrams/execute_project/source_connection_string.png alt="source_db conenction string">
     <img src=diagrams/execute_project/warehouse_connection_string.png alt="warehouse_db conenction string">
 
-0. Run `initialize_warehouse_db` DAG and wait for it to complete.
+5. Run `initialize_warehouse_db` DAG and wait for it to complete.
 <img src=diagrams/airflow/dag_graph.png alt="success dag">
 
-0. Open `./infra/source/main.py` and change `start_schedule` to `True`
-0. Wait for `ecommerce-data-source` container to restart
-0. Check `kafka-listener` container to verify the setup is completed
+6. Open `./infra/source/main.py` and change `start_schedule` to `True`
+7. Wait for `ecommerce-data-source` container to restart
+8. Check `kafka-listener` container to verify the setup is completed
 <img src=diagrams/execute_project/kafka_listener_log.png alt="success dag">
 
