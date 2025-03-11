@@ -93,3 +93,20 @@ services:
       timeout: 10s
       retries: 5
     restart: always
+
+  streamlit:
+    build:
+      context: ./streamlit
+    ports:
+      - "8501:8501" 
+    depends_on:
+      - warehouse-postgresql
+      - ecommerce-postgresql
+      - kafka
+      - ecommerce-data-source
+      - kafka-listener 
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./streamlit/app.py
+          target: /app/app.py 
