@@ -102,5 +102,6 @@ CREATE TABLE fact_cart_activity (
     id SERIAL PRIMARY KEY,
     cart_id INTEGER REFERENCES dim_cart(cart_id) NOT NULL,
     product_id INTEGER REFERENCES dim_product(id) NOT NULL,
-    quantity INTEGER NOT NULL
+    quantity INTEGER NOT NULL,
+    date_added INTEGER REFERENCES dim_date(id) NOT NULL
 );
