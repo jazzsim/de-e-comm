@@ -5,6 +5,12 @@ The **aim** of this project would be be familiar with data engineering concepts 
 
 <img src=diagrams/project_outline.png alt="high-level project overview">
 
+## Streamlit
+Live metrics from warehouse database *(update every 10s)*
+
+<img src=diagrams/streamlit.png alt="Streamlit Today's Sale Dashboard">
+
+
 ## Folder Structure
 
 The project is separated into airflow folder and infra folder, each contains a docker compose file. Kindly refer to the `readme.md` in respective folders for further documentations.
